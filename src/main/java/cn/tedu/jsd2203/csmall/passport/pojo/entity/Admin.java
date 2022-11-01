@@ -21,4 +21,5 @@ public class Admin implements Serializable {
     private LocalDateTime gmtLastLogin;
     private LocalDateTime gmtCreate;
     private LocalDateTime gmtModified;
+
 }

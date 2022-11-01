@@ -2,6 +2,7 @@ package cn.tedu.jsd2203.csmall.passport.controller;
 
 import cn.tedu.jsd2203.csmall.passport.pojo.dto.AdminAddNewDTO;
 import cn.tedu.jsd2203.csmall.passport.service.IAdminService;
+import cn.tedu.jsd2203.csmall.passport.validation.AdminValidationConst;
 import cn.tedu.jsd2203.csmall.passport.web.JsonResult;
 import com.github.xiaoymin.knife4j.annotations.ApiOperationSupport;
 import io.swagger.annotations.Api;
@@ -34,6 +35,6 @@ public class AdminController {
     public JsonResult addNew(@RequestBody @Valid AdminAddNewDTO adminAddNewDTO){
         log.info("接收到要添加的管理员账号,{}",adminAddNewDTO);
         adminService.addNew(adminAddNewDTO);
-        return JsonResult.ok();
+        return JsonResult.ok(AdminValidationConst.OK_USERNAME);
     }
 }

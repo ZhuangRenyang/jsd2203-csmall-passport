@@ -12,13 +12,13 @@ public class BeanConfig {
 
     @Lazy
     @Bean
-    public Date date(){
+    public static Date date(){
         System.out.println("BeanConfig.date()");
         return new Date();
     }
 
     @Bean
-    public LocalDateTime localDateTime(){
+    public static LocalDateTime localDateTime(){
         System.out.println("BeanConfig.localDateTime()");
         return LocalDateTime.now();
     }

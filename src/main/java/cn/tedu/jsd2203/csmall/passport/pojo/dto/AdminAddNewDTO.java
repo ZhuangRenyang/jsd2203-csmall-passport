@@ -37,10 +37,10 @@ public class AdminAddNewDTO implements Serializable {
     @ApiModelProperty(value = "电子邮箱",required = true,example = "fafafae@163.com")
     private String email;
 
-    @ApiModelProperty(value = "描述",example = "我就是我，是不一样的烟火")
+    @ApiModelProperty(value = "介绍",example = "我就是我，是不一样的烟火")
     private String description;
 
     @ApiModelProperty(value = "是否启用",required = true,example = "1")
-    @Range(min = 1,max = 2,message = "选择范围1或2")
+    @Range(min = 0,max = 1,message = "选择范围0或1")
     private Integer enable;
 }

@@ -1,5 +1,6 @@
 package cn.tedu.jsd2203.csmall.passport.service.impl;
 
+import cn.tedu.jsd2203.csmall.passport.config.BeanConfig;
 import cn.tedu.jsd2203.csmall.passport.exception.ServiceException;
 import cn.tedu.jsd2203.csmall.passport.mapper.AdminMapper;
 import cn.tedu.jsd2203.csmall.passport.pojo.dto.AdminAddNewDTO;
@@ -28,6 +29,7 @@ public class AdminServiceImpl implements IAdminService {
         }
         Admin admin = new Admin();
         BeanUtils.copyProperties(adminAddNewDTO, admin);
+        admin.setGmtCreate(BeanConfig.localDateTime());
         int rows = adminMapper.insert(admin);
         if (rows !=1){
             String message = "添加用户失败，服务器忙，请稍后重试";

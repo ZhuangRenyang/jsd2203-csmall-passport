@@ -17,4 +17,7 @@ public class AdminListItemVO implements Serializable {
     private Integer enable;
     private String lastLoginIp;
     private Integer loginCount;
+    private String gmtLastLogin;
+    private String gmtCreate;
+    private String gmtModified;
 }

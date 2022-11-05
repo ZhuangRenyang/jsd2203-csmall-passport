@@ -5,12 +5,15 @@ import cn.tedu.jsd2203.csmall.passport.exception.ServiceException;
 import cn.tedu.jsd2203.csmall.passport.mapper.AdminMapper;
 import cn.tedu.jsd2203.csmall.passport.pojo.dto.AdminAddNewDTO;
 import cn.tedu.jsd2203.csmall.passport.pojo.entity.Admin;
+import cn.tedu.jsd2203.csmall.passport.pojo.vo.AdminListItemVO;
 import cn.tedu.jsd2203.csmall.passport.service.IAdminService;
 import cn.tedu.jsd2203.csmall.passport.web.ServiceCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Slf4j
 @Service
@@ -37,5 +40,11 @@ public class AdminServiceImpl implements IAdminService {
         }
         log.info("插入成功,受影响的行数:{}", rows);
 
+    }
+
+    @Override
+    public List<AdminListItemVO> list() {
+        log.debug("处理查询用户列表的业务...");
+        return adminMapper.list();
     }
 }

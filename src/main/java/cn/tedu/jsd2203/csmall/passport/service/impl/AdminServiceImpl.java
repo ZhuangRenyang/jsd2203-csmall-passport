@@ -11,6 +11,7 @@ import cn.tedu.jsd2203.csmall.passport.web.ServiceCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -18,24 +19,38 @@ import java.util.List;
 @Slf4j
 @Service
 public class AdminServiceImpl implements IAdminService {
+
+    @Autowired
+    public BCryptPasswordEncoder passwordEncoder;
+
     @Autowired
     AdminMapper adminMapper;
 
     @Override
     public void addNew(AdminAddNewDTO adminAddNewDTO) {
+        log.debug("开始处理添加管理员的业务，参数：{}", adminAddNewDTO);
+
         String name = adminAddNewDTO.getUsername();
+        // 检查此用户名有没有被占用
         int count = adminMapper.countByUsername(name);
         if (count > 0){
-            String message = "注册失败用户名称已存在";
+            String message = "添加管理员失败，用户名【\" + username + \"】已经被占用！";
             log.error(message);
             throw new ServiceException(ServiceCode.ERR_CONFLICT,message);
         }
-        Admin admin = new Admin();
-        BeanUtils.copyProperties(adminAddNewDTO, admin);
-        admin.setGmtCreate(BeanConfig.localDateTime());
+        Admin admin = new Admin();// 创建实体对象
+        BeanUtils.copyProperties(adminAddNewDTO, admin);// 将当前方法参数的值复制到实体类型的对象中
+        // 补全属性值（不由客户端提交的属性的值，应该在插入之前补全）
+        admin.setGmtCreate(BeanConfig.localDateTime());//注册时间
+
+        String rawPassword = admin.getPassword();//将原密码从admin对象取出，加密后再存入到admin对象中
+        String encodePassword = passwordEncoder.encode(rawPassword);//加密密码
+        admin.setPassword(encodePassword);//插入密码
+        // 将管理员数据写入到数据库中
+        log.debug("即将向管理员表中写入数据：{}", admin);
         int rows = adminMapper.insert(admin);
         if (rows !=1){
-            String message = "添加用户失败，服务器忙，请稍后重试";
+            String message = "添加管理员失败，服务器忙，请稍后再次尝试！【错误码：1】";
             throw new ServiceException(ServiceCode.ERR_UNKNOWN,message);
         }
         log.info("插入成功,受影响的行数:{}", rows);

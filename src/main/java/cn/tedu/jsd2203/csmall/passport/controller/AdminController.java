@@ -15,6 +15,13 @@ import org.springframework.web.bind.annotation.*;
 import javax.validation.Valid;
 import java.util.List;
 
+
+/**
+ * 管理员控制器
+ *
+ * @author java@tedu.cn
+ * @version 0.0.1
+ */
 @Slf4j
 @RestController
 @Api(tags = "用户管理")
@@ -27,7 +34,7 @@ public class AdminController {
         log.info("AdminController");
     }
 
-
+    // http://localhost:9081/admins/add-new
     @ApiOperation("用户注册")
     @ApiOperationSupport(order = 10)
     @PostMapping("/add-new")
@@ -37,6 +44,7 @@ public class AdminController {
         return JsonResult.ok(AdminValidationConst.OK_USERNAME);
     }
 
+    // http://localhost:9081/admins
     @ApiOperation("用户列表")
     @ApiOperationSupport(order = 20)
     @GetMapping("")

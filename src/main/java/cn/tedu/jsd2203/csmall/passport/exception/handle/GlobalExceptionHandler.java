@@ -12,6 +12,13 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.List;
 import java.util.StringJoiner;
 
+
+/**
+ * 统一处理异常
+ *
+ * @author java@tedu.cn
+ * @version 0.0.1
+ */
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {

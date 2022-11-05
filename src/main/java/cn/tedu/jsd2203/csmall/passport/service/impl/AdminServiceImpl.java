@@ -43,8 +43,45 @@ public class AdminServiceImpl implements IAdminService {
     }
 
     @Override
+    public void deleteById(Long id) {
+        log.debug("处理删除用户数据的业务，id为:{}",id);
+        AdminListItemVO adminListItemVO = adminMapper.getById(id);
+        if (adminListItemVO == null){
+            String message = "删除用户失败,删除的数据(id:"+id+")不存在";
+            throw new ServiceException(ServiceCode.ERR_NOT_FOUND,message);
+        }
+        int rows = adminMapper.deleteById(id);
+        if (rows != 1){
+            String message = "删除失败,服务器忙,请稍后重试";
+            throw new ServiceException(ServiceCode.ERR_DELETE,message);
+        }
+    }
+
+    @Override
     public List<AdminListItemVO> list() {
         log.debug("处理查询用户列表的业务...");
         return adminMapper.list();
     }
+
+    @Override
+    public void updateById(Long id, String nickname) {
+        AdminListItemVO adminListItemVO = adminMapper.getById(id);
+        if (adminListItemVO == null){
+            String message = "修改用户昵称失败，修改的数据(id:" + id + ")不存在";
+            throw new ServiceException(ServiceCode.ERR_NOT_FOUND, message);
+        }
+
+        Admin admin = new Admin();
+        admin.setId(id);
+        admin.setNickname(nickname);
+        int rows = adminMapper.updateAdmin(admin);
+        if (rows != 1) {
+            String message = "修改类别名称失败，服务器忙，请稍后重试~";
+            throw new ServiceException(ServiceCode.ERR_DELETE, message);
+        }
+        log.info("修改的用户id为:{},昵称为:{}",id,nickname);
+        log.info("修改用户昵称成功~");
+    }
+
+
 }

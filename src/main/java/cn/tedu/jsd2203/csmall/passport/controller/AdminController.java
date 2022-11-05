@@ -22,17 +22,17 @@ import java.util.List;
 public class AdminController {
     @Autowired
     private IAdminService adminService;
+
     public AdminController() {
         log.info("AdminController");
     }
 
 
-
     @ApiOperation("用户注册")
     @ApiOperationSupport(order = 10)
     @PostMapping("/add-new")
-    public JsonResult addNew(@RequestBody @Valid AdminAddNewDTO adminAddNewDTO){
-        log.info("接收到要添加的管理员账号,{}",adminAddNewDTO);
+    public JsonResult addNew(@RequestBody @Valid AdminAddNewDTO adminAddNewDTO) {
+        log.info("接收到要添加的管理员账号,{}", adminAddNewDTO);
         adminService.addNew(adminAddNewDTO);
         return JsonResult.ok(AdminValidationConst.OK_USERNAME);
     }
@@ -40,9 +40,27 @@ public class AdminController {
     @ApiOperation("用户列表")
     @ApiOperationSupport(order = 20)
     @GetMapping("")
-    public JsonResult list(){
+    public JsonResult list() {
         log.info("AdminController.list");
         List<AdminListItemVO> list = adminService.list();
         return JsonResult.ok(list);
+    }
+
+    @ApiOperation("删除用户")
+    @ApiOperationSupport(order = 30)
+    @PostMapping("/{id:[0-9]+]}/delete")
+    public JsonResult delete(@PathVariable("id") Long id) {
+        log.info("接收到删除拥护的请求,参数id:{}", id);
+        adminService.deleteById(id);
+        return JsonResult.ok();
+    }
+
+    @ApiOperation("修改昵称")
+    @ApiOperationSupport(order = 40)
+    @PostMapping("/{id:[0-9]+}/update/{nickname}")
+    public JsonResult update(@PathVariable("id") Long id, @PathVariable("nickname") String nickname){
+        log.info("接收到修改用户的请求,参数id:{},参数名称:{}", id,nickname);
+        adminService.updateById(id, nickname);
+        return JsonResult.ok();
     }
 }

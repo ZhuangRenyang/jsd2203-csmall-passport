@@ -3,6 +3,7 @@
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="cn.tedu.jsd2203.csmall.passport.mapper.AdminMapper">
+
     <!--    int insert(Admin admin);-->
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO ams_admin(id,
@@ -34,6 +35,7 @@
                 #{gmtCreate},
                 #{gmtModified})
     </insert>
+
     <!--    int countByUsername(String username);-->
     <select id="countByUsername" resultType="int">
         SELECT COUNT(*)
@@ -48,13 +50,11 @@
         FROM ams_admin
         ORDER BY id
     </select>
-
     <resultMap id="ListItemResultMap" type="cn.tedu.jsd2203.csmall.passport.pojo.vo.AdminListItemVO">
         <id column="id" property="id"></id>
         <result column="last_login_ip" property="lastLoginIp"></result>
         <result column="login_count" property="loginCount"></result>
     </resultMap>
-
     <sql id="ListItemQueryFields">
         <if test="true">
             id, username, password, nickname, avatar,
@@ -62,4 +62,58 @@
             login_count
         </if>
     </sql>
+
+    <!--    AdminListItemVO getById(Long id);-->
+    <select id="getById" resultMap="detailResultMap">
+        SELECT id,
+               username,
+               password,
+               nickname,
+               avatar,
+               phone,
+               email,
+               description,
+               enable,
+               last_login_ip,
+               login_count,
+               gmt_last_login,
+               gmt_create,
+               gmt_modified
+        FROM ams_admin
+        WHERE id = #{id}
+    </select>
+    <resultMap id="detailResultMap" type="cn.tedu.jsd2203.csmall.passport.pojo.vo.AdminListItemVO">
+        <result column="last_login_ip" property="lastLoginIp"></result>
+        <result column="login_count" property="loginCount"></result>
+        <result column="gmt_last_login" property="gmtLastLogin"></result>
+        <result column="gmt_create" property="gmtCreate"></result>
+        <result column="gmt_modified" property="gmtModified"></result>
+    </resultMap>
+
+    <!--    int deleteById(Long id);-->
+    <delete id="deleteById">
+        DELETE
+        FROM ams_admin
+        WHERE id = #{id}
+    </delete>
+
+    <!--    int updateAdmin(Admin admin);-->
+    <update id="updateAdmin">
+        UPDATE ams_admin
+        <set>
+            <if test="username != null">username =#{username},</if>
+            <if test="password != null">password =#{password},</if>
+            <if test="nickname != null">nickname =#{nickname},</if>
+            <if test="avatar != null">avatar =#{avatar},</if>
+            <if test="phone != null">phone =#{phone},</if>
+            <if test="email != null">email =#{email},</if>
+            <if test="description != null">description =#{description},</if>
+            <if test="enable != null">enable =#{enable},</if>
+            <if test="lastLoginIp != null">last_login_ip =#{lastLoginIp},</if>
+            <if test="loginCount != null">login_count =#{loginCount},</if>
+            <if test="gmtLastLogin != null">gmt_last_login =#{gmtLastLogin},</if>
+            <if test="gmtModified != null">gmt_modified =#{gmtModified}</if>
+        </set>
+        WHERE id =#{id}
+    </update>
 </mapper>

@@ -5,6 +5,8 @@ public class ServiceCode {
      * 成功
      */
     public static final int OK = 20000;
+
+    public static final int ERR_NOT_FOUND = 40400;
     /**
      * 错误：冲突 - 重复数据
      */

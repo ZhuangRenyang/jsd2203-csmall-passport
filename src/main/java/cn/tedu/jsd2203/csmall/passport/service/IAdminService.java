@@ -10,5 +10,9 @@ public interface IAdminService {
 
     void addNew(AdminAddNewDTO adminAddNewDTO);
 
+    void deleteById(Long id);
+
     List<AdminListItemVO> list();
+
+    void updateById(Long id, String nickname);
 }

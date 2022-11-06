@@ -2,6 +2,7 @@ package cn.tedu.jsd2203.csmall.passport.mapper;
 
 import cn.tedu.jsd2203.csmall.passport.pojo.entity.Admin;
 import cn.tedu.jsd2203.csmall.passport.pojo.vo.AdminListItemVO;
+import cn.tedu.jsd2203.csmall.passport.pojo.vo.AdminLoginVo;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -41,4 +42,6 @@ public interface AdminMapper {
     AdminListItemVO getById(Long id);
 
     int updateAdmin(Admin admin);
+
+    AdminLoginVo getByUsername(String username);
 }

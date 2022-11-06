@@ -1,6 +1,7 @@
 package cn.tedu.jsd2203.csmall.passport.controller;
 
 import cn.tedu.jsd2203.csmall.passport.pojo.dto.AdminAddNewDTO;
+import cn.tedu.jsd2203.csmall.passport.pojo.dto.AdminLoginDTO;
 import cn.tedu.jsd2203.csmall.passport.pojo.vo.AdminListItemVO;
 import cn.tedu.jsd2203.csmall.passport.service.IAdminService;
 import cn.tedu.jsd2203.csmall.passport.validation.AdminValidationConst;
@@ -56,9 +57,9 @@ public class AdminController {
 
     @ApiOperation("删除用户")
     @ApiOperationSupport(order = 30)
-    @PostMapping("/{id:[0-9]+]}/delete")
+    @PostMapping("/{id:[0-9]+}/delete")
     public JsonResult delete(@PathVariable("id") Long id) {
-        log.info("接收到删除拥护的请求,参数id:{}", id);
+        log.info("接收到删除用户的请求,参数id:{}", id);
         adminService.deleteById(id);
         return JsonResult.ok();
     }
@@ -69,6 +70,16 @@ public class AdminController {
     public JsonResult update(@PathVariable("id") Long id, @PathVariable("nickname") String nickname){
         log.info("接收到修改用户的请求,参数id:{},参数名称:{}", id,nickname);
         adminService.updateById(id, nickname);
+        return JsonResult.ok();
+    }
+
+    // http://localhost:9081/admins
+    @ApiOperation("管理员登录")
+    @ApiOperationSupport(order = 50)
+    @PostMapping("/login")
+    public JsonResult login(AdminLoginDTO adminLoginDTO){
+        log.debug("接收到用户登录请求:{}",adminLoginDTO);
+        adminService.login(adminLoginDTO);
         return JsonResult.ok();
     }
 }

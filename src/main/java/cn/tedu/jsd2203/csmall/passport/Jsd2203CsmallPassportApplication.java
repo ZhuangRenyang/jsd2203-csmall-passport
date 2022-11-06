@@ -7,7 +7,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class Jsd2203CsmallPassportApplication {
 
 	public static void main(String[] args) {
+
 		SpringApplication.run(Jsd2203CsmallPassportApplication.class, args);
+
 	}
 
 }

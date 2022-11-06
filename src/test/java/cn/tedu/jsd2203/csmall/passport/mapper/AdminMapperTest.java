@@ -1,6 +1,7 @@
 package cn.tedu.jsd2203.csmall.passport.mapper;
 
 import cn.tedu.jsd2203.csmall.passport.pojo.entity.Admin;
+import cn.tedu.jsd2203.csmall.passport.pojo.vo.AdminLoginVo;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,5 +20,13 @@ public class AdminMapperTest {
         admin.setUsername("hhh");
         int insert = adminMapper.insert(admin);
         log.info("插入成功,受影响的行数为:{}",insert);
+    }
+
+    //	AdminLoginVo getByUsername(String username);
+    @Test
+    void textGetByUsername() {
+
+        AdminLoginVo byUsername = adminMapper.getByUsername("qqqq");
+        log.debug("用户名为:{}",byUsername);
     }
 }

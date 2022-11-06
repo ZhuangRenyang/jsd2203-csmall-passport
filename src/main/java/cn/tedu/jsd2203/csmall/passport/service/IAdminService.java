@@ -2,6 +2,7 @@ package cn.tedu.jsd2203.csmall.passport.service;
 
 
 import cn.tedu.jsd2203.csmall.passport.pojo.dto.AdminAddNewDTO;
+import cn.tedu.jsd2203.csmall.passport.pojo.dto.AdminLoginDTO;
 import cn.tedu.jsd2203.csmall.passport.pojo.vo.AdminListItemVO;
 
 import java.util.List;
@@ -15,6 +16,12 @@ public interface IAdminService {
      */
     void addNew(AdminAddNewDTO adminAddNewDTO);
 
+    /**
+     * 处理登录业务
+     * @param adminLoginDTO 管理员登录信息
+     */
+    void login(AdminLoginDTO adminLoginDTO);
+
     void deleteById(Long id);
 
     /**
@@ -25,4 +32,6 @@ public interface IAdminService {
     List<AdminListItemVO> list();
 
     void updateById(Long id, String nickname);
+
+
 }

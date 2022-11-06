@@ -9,16 +9,22 @@ import cn.tedu.jsd2203.csmall.passport.pojo.entity.Admin;
 import cn.tedu.jsd2203.csmall.passport.pojo.vo.AdminListItemVO;
 import cn.tedu.jsd2203.csmall.passport.service.IAdminService;
 import cn.tedu.jsd2203.csmall.passport.web.ServiceCode;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 品牌业务实现
@@ -72,7 +78,7 @@ public class AdminServiceImpl implements IAdminService {
     }
 
     @Override
-    public void login(AdminLoginDTO adminLoginDTO) {
+    public String login(AdminLoginDTO adminLoginDTO) {
         log.debug("开始处理登录的业务:参数:{}", adminLoginDTO);
 
         //调用 authenticationManager 执行Spring Security的认证
@@ -80,9 +86,33 @@ public class AdminServiceImpl implements IAdminService {
                 new UsernamePasswordAuthenticationToken(
                         adminLoginDTO.getUsername(),
                         adminLoginDTO.getPassword());
-        authenticationManager.authenticate(authentication);
+
+        //获取返回结果
+        Authentication loginResult = authenticationManager.authenticate(authentication);
+
+        log.debug("登录成功，认证的方法返回结果：{}",loginResult);
+        // 从认证结果获取Principal，本质就时User类型，是loadUserByUsername()方法返回的结果
+        log.debug("尝试获取Principal：{}",loginResult.getPrincipal());
+
+        User user = (User) loginResult.getPrincipal();
+        String username = user.getUsername();
+        log.debug("登录成功后的用户名：{}",username);
+        //生成jwt
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("username", user.getUsername());
+        //过期时间： 60分钟
+        Date expirationDate = new Date(System.currentTimeMillis() + 60 * 60 * 1000);//System.currentTimeMillis();//1970年1月1日0时0分0秒 到 此时此刻 的毫秒值
+
+        String jwt = Jwts.builder()//JWT的组成部分：header（头） ，payload（载荷），signature（签名）
+                .setHeaderParam("typ", "jwt") //header: 用于配置算法与此结果数据的类型
+                .setHeaderParam("alg", "HS256")
+                .setClaims(claims)//payload: 用于配置需要封装到JWT的数据
+                .setExpiration(expirationDate)
+                .signWith(SignatureAlgorithm.HS256, "udiasjia")//signature:用于指定算法与密匙
+                .compact(); //打包
+        log.debug("加密验证信息{}", jwt);
         //如果能执行到此处，则表示用户名与密码是匹配的(以上方法红户名与密码不匹配则抛出异常)
-        log.debug("登录成功");
+        return jwt;
     }
 
     @Override

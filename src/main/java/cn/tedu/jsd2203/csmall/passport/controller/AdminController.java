@@ -41,6 +41,7 @@ public class AdminController {
     @PostMapping("/add-new")
     public JsonResult addNew(@RequestBody @Valid AdminAddNewDTO adminAddNewDTO) {
         log.info("接收到要添加的管理员账号,{}", adminAddNewDTO);
+        //需要调用业务层的方法
         adminService.addNew(adminAddNewDTO);
         return JsonResult.ok(AdminValidationConst.OK_USERNAME);
     }
@@ -67,8 +68,8 @@ public class AdminController {
     @ApiOperation("修改昵称")
     @ApiOperationSupport(order = 40)
     @PostMapping("/{id:[0-9]+}/update/{nickname}")
-    public JsonResult update(@PathVariable("id") Long id, @PathVariable("nickname") String nickname){
-        log.info("接收到修改用户的请求,参数id:{},参数名称:{}", id,nickname);
+    public JsonResult update(@PathVariable("id") Long id, @PathVariable("nickname") String nickname) {
+        log.info("接收到修改用户的请求,参数id:{},参数名称:{}", id, nickname);
         adminService.updateById(id, nickname);
         return JsonResult.ok();
     }
@@ -77,9 +78,10 @@ public class AdminController {
     @ApiOperation("管理员登录")
     @ApiOperationSupport(order = 50)
     @PostMapping("/login")
-    public JsonResult login(AdminLoginDTO adminLoginDTO){
-        log.debug("接收到用户登录请求:{}",adminLoginDTO);
-        adminService.login(adminLoginDTO);
-        return JsonResult.ok();
+    public JsonResult login(AdminLoginDTO adminLoginDTO) {
+        log.debug("接收到用户登录请求:{}", adminLoginDTO);
+        //需要调用业务层的方法
+        String jwt = adminService.login(adminLoginDTO);
+        return JsonResult.ok(jwt);
     }
 }

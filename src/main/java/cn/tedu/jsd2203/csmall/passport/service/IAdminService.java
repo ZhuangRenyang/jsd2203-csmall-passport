@@ -20,7 +20,7 @@ public interface IAdminService {
      * 处理登录业务
      * @param adminLoginDTO 管理员登录信息
      */
-    void login(AdminLoginDTO adminLoginDTO);
+    String login(AdminLoginDTO adminLoginDTO);
 
     void deleteById(Long id);
 

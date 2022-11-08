@@ -101,7 +101,7 @@ public class AdminServiceImpl implements IAdminService {
         Map<String, Object> claims = new HashMap<>();
         claims.put("username", user.getUsername());
         //过期时间： 60分钟
-        Date expirationDate = new Date(System.currentTimeMillis() + 60 * 60 * 1000);//System.currentTimeMillis();//1970年1月1日0时0分0秒 到 此时此刻 的毫秒值
+        Date expirationDate = new Date(System.currentTimeMillis() +60* 60 * 60 * 1000);//System.currentTimeMillis();//1970年1月1日0时0分0秒 到 此时此刻 的毫秒值
 
         String jwt = Jwts.builder()//JWT的组成部分：header（头） ，payload（载荷），signature（签名）
                 .setHeaderParam("typ", "jwt") //header: 用于配置算法与此结果数据的类型

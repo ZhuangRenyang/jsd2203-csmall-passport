@@ -11,6 +11,7 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
@@ -79,6 +80,7 @@ public class AdminController {
     @ApiOperationSupport(order = 50)
     @PostMapping("/login")
     public JsonResult login(AdminLoginDTO adminLoginDTO) {
+// 请求 ==> Controller ==> Service ==> SecurityConfiguration类方法{AuthenticationManager()} ==> UserDetailsServiceImpl ==> Mapper
         log.debug("接收到用户登录请求:{}", adminLoginDTO);
         //需要调用业务层的方法
         String jwt = adminService.login(adminLoginDTO);

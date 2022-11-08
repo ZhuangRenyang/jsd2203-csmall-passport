@@ -293,7 +293,8 @@ public UserDetails loadUserByUsername(String s) throws UsernameNotFoundException
 - 这不是前后端分离的做法（服务器端处理了登录后，不响应JSON结果）
 - 不便于处理细节，例如使用Validation框架验证请求参数的格式
 
-要解决此问题，应该：像开发其它数据处理流程一样的做法，只不过，在自定义的Service实现过程中，通过Spring Security的机制来验证用户名和密码即可。
+要解决此问题，应该：像开发其它数据处理流程一样的做法，只不过，在自定义的Service实现过程中，
+通过Spring Security的机制来验证用户名和密码即可。
 
 首先，需要使得控制器可以接收客户端提交的登录请求，需要：
 
@@ -320,7 +321,9 @@ public UserDetails loadUserByUsername(String s) throws UsernameNotFoundException
 关于在Service中处理登录的细节，应该使用Spring Security中的`AuthenticationManager`对象来
 执行Spring Security的认证过程（后续保存用户信息、授权访问等都需要）。
 
-如果需要得到`AuthenticationManager`，需要在Spring Security的配置类（自定义的`SecurityConfiguration`类）中重写`authenticationManager()`方法，此方法可以返回`AuthenticationManager`对象，则在重写在方法上添加`@Bean`注解，可以使得Spring会自动调用此方法，并将返回结果保存在Spring容器中：
+如果需要得到`AuthenticationManager`，需要在Spring Security的配置类（自定义的`SecurityConfiguration`类）中
+重写`authenticationManager()`方法，此方法可以返回`AuthenticationManager`对象，则在重写在方法上添加`@Bean`注解，
+可以使得Spring会自动调用此方法，并将返回结果保存在Spring容器中：
 
 ```
 @Bean // 必须添加此注解
@@ -330,7 +333,8 @@ protected AuthenticationManager authenticationManager() throws Exception {
 }
 ```
 
-然后，回到业务实现类中，自动装配`AuthenticationManager`对象，在具体实现时，调用此对象的`authenticate()`方法，即可实现Spring Security的认证，此方法的参数可使用`UsernamePasswordAuthenticationToken`来封装用户名和密码：
+然后，回到业务实现类中，自动装配`AuthenticationManager`对象，在具体实现时，调用此对象的`authenticate()`方法，
+即可实现Spring Security的认证，此方法的参数可使用`UsernamePasswordAuthenticationToken`来封装用户名和密码：
 
 ```
 @Override
@@ -375,7 +379,8 @@ Session中的Key本身上都是UUID值，本身并没有具体的信息含义，
 ## 关于Token
 
 Token可以称之为“票据”、“令牌”，其最大的特点是类似于Session的Key这样的数据中是体现信息含义的！相当于“火车票”，
-票上是可以体现一些数据的，服务器就相当于“车站”，不同的车站都有相同的验票机制，能够识别“火车票”的真伪，并从中获取某些信息。
+票上是可以体现一些数据的，服务器就相当于“车站”，不同的车站都有相同的验票机制，能够识别“火车票”的真伪，
+并从中获取某些信息。
 
 
 ## 关于JWT
@@ -681,4 +686,68 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 
 }
 ```
+
+## 编码流程，基于Security+JWT的管理员登录
+
+- 相关依赖:spring-boot-starter-security、jjwt
+- 创建管理员登录的VO类(AdminLoginVO)
+- 在AdminMapper接口和AdminMapper.xml实现：根据用户名查询管理员信息(至少包含：用户名、密码、权限)
+- 自定义类实现UserDetailsService接口，重写loadUserByUsername(String s)方法，在此类中通过AdminMapper查询的
+找到管理员信息，并封装到UserDetails对象中返回
+- 创建Security配置类，继承WebSecurityConfigurerAdapter类，在此类中使用@Bean方法得到AuthenticationManager对象，
+得到PasswordEncoder对象
+- 在IAdminService接口添加登录抽象方法，并在AdminServiceImpl中重写此方法，在方法中调用AuthenticationManager的
+authenticate()执行认证，如果认证通过，应该生成JWT数据并返回，此JWT数据中应当包含用户名及其必要信息
+- AdminController中处理登录请求，并通过调用IAdminService中组件来实现，将得到的JWT响应到客户端。
+
+## 完整编码流程：登录后的访问
+
+- 在Security的配置类中，指定一些白名单，这些是不需要登录就可以直接访问的，其它请求路径都必须登录后才可以访问，
+  需要注意：登录、注册等请求路径必须在白名单，否则不合理
+- 创建JWT过滤器，在此过滤器中：
+  - 清除Security的上下文
+  - 从请求头中获取JWT
+  - 对JWT数据进行基本判断（是否有值），如果没有有效值，直接放行
+  - 如果获取到有效的JWT，则解析，得到用户信息，将用户信息存入到上下文中
+- 在Security的配置类中，添加以上过滤器，将其添加在`UsernamePasswordAuthenticationFilter`之前
+
+## 关于CORS
+
+CORS：跨域的异步访问，默认情况下，是不允许的。
+
+在使用Spring MVC框架时，需要允许跨域访问时，可以自定义配置类，实现`WebMvcConfigure`接口，重写其中的`addCorsMappings()`方法：
+
+```java
+@Configuration
+public class WebMvcConfiguration implements WebMvcConfigurer {
+
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/**")
+                .allowedOriginPatterns("*")
+                .allowedHeaders("*")
+                .allowedMethods("*")
+                .allowCredentials(true)
+                .maxAge(3600);
+    }
+
+}
+```
+
+当项目中进一步使用了Spring Security框架后，当客户端提交复杂请求（自定义了请求头中非常规属性，例如添加了`Authorization`属性）
+时，还需要在Spring Security的配置类允许复杂请求的跨域访问，解决方案可以是：
+
+```
+http.cors();
+```
+
+或者：
+
+```
+http.antMatchers(HttpMethod.OPTIONS, "/**").permitAll();
+```
+
+之所以需要进行这样的处理，是因为复杂请求本身有预检（PreFlight）机制，在提交请求时，客户端会自动先提交`OPTIONS`类型的请求，
+此时服务器端可能是不通过的，则会出现`403`错误，并且，实质尝试提交的请求（例如`GET`、`POST`）中复杂请求头部信息不会被提交。
+在浏览器端，一旦成功的提交了复杂请求，则后续不会自动提交`OPTIONS`请求执行预检。
 

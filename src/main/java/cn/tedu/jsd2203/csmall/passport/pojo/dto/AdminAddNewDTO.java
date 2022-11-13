@@ -11,7 +11,10 @@ import javax.validation.constraints.Pattern;
 import java.io.Serializable;
 
 /**
- * 管理员列表
+ * 添加管理员的信息
+ *
+ * @author java@tedu.cn
+ * @version 0.0.1
  */
 @Data
 public class AdminAddNewDTO implements Serializable {
@@ -26,7 +29,7 @@ public class AdminAddNewDTO implements Serializable {
     /**
      * 密码（密文）
      */
-    @ApiModelProperty(value = "密码",required = true,example = "1223")
+    @ApiModelProperty(value = "密码",required = true,example = "123123")
     @NotBlank(message = "请填写有效密码，密码不能带有空格")
     @Pattern(regexp = AdminValidationConst.REGEXP_PASSWORD,message = AdminValidationConst.MESSAGE_PASSWORD)
     private String password;

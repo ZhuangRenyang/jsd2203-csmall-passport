@@ -1,13 +1,22 @@
 package cn.tedu.jsd2203.csmall.passport.mapper;
 
 import cn.tedu.jsd2203.csmall.passport.pojo.entity.Admin;
+import cn.tedu.jsd2203.csmall.passport.pojo.entity.AdminRole;
 import cn.tedu.jsd2203.csmall.passport.pojo.vo.AdminListItemVO;
 import cn.tedu.jsd2203.csmall.passport.pojo.vo.AdminLoginVo;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+
+/**
+ * 管理员Mapper接口
+ *
+ * @author java@tedu.cn
+ * @version 0.0.1
+ */
 @Repository
 public interface AdminMapper {
+
     /**
      * 插入用户数据
      *
@@ -24,6 +33,12 @@ public interface AdminMapper {
      */
     int deleteById(Long id);
 
+    /**
+     * 根据管理员用户名统计此用户名对应的管理员数据的数量
+     *
+     * @param username 管理员用户名
+     * @return 此名称对应的管理员数据的数量
+     */
     int countByUsername(String username);//用户唯一
 
     /**
@@ -43,5 +58,11 @@ public interface AdminMapper {
 
     int updateAdmin(Admin admin);
 
+    /**
+     * 根据用户名查询查询管理员的登录信息
+     * @param username 用户名
+     * @return 管理员登录信息
+     */
     AdminLoginVo getByUsername(String username);
+
 }

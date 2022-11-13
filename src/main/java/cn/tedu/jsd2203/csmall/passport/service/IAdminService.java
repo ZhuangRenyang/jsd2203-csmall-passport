@@ -7,6 +7,12 @@ import cn.tedu.jsd2203.csmall.passport.pojo.vo.AdminListItemVO;
 
 import java.util.List;
 
+/**
+ * 管理员业务接口
+ *
+ * @author java@tedu.cn
+ * @version 0.0.1
+ */
 public interface IAdminService {
 
     /**

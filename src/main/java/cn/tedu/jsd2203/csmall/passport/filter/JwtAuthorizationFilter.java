@@ -1,7 +1,11 @@
 package cn.tedu.jsd2203.csmall.passport.filter;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
+import cn.tedu.jsd2203.csmall.passport.security.LoginPrincipal;
+import cn.tedu.jsd2203.csmall.passport.util.JwtUtils;
+import cn.tedu.jsd2203.csmall.passport.web.JsonResult;
+import cn.tedu.jsd2203.csmall.passport.web.ServiceCode;
+import com.alibaba.fastjson.JSON;
+import io.jsonwebtoken.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -18,7 +22,6 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -36,7 +39,7 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
 
         // 清除Security的上下文
         // 如果不清除，只要此前存入过信息，即使后续不携带JWT，上下文中的登录信息依然存在
-        SecurityContextHolder.clearContext();
+        SecurityContextHolder.getContext();
 
         // 从请求头中获取JWT
         String jwt =  request.getHeader("Authorization");
@@ -48,25 +51,66 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
             filterChain.doFilter(request,response);
             return;
         }
+
         //解析
-        Claims claims = Jwts.parser().setSigningKey("udiasjia").parseClaimsJws(jwt).getBody();
+        Claims claims = null;
+        try{
+             claims = JwtUtils.parse(jwt);
+        }catch (ExpiredJwtException e){
+            log.debug("解析JWT失败,JWT过期:{},{}",e.getClass().getName(),e.getMessage());
+            String errorMessage = "登录信息过期,请重新登录!";
+            JsonResult jsonResult = JsonResult.fail(ServiceCode.ERR_JWT_EXPIRED, errorMessage);
+            String jsonResultString = JSON.toJSONString(jsonResult);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().println(jsonResultString);
+            return;
+        }catch (SignatureException e){
+            log.debug("解析JWT失败,签名错误:{},{}",e.getClass().getName(),e.getMessage());
+            String errorMessage = "登录信息过期,请重新登录!";
+            JsonResult jsonResult = JsonResult.fail(ServiceCode.ERR_JWT_INVALID, errorMessage);
+            String jsonResultString = JSON.toJSONString(jsonResult);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().println(jsonResultString);
+            return;
+        }catch (MalformedJwtException e){
+            log.debug("解析JWT失败,数据错误:{},{}",e.getClass().getName(),e.getMessage());
+            String errorMessage = "数据错误信息错误,请重新登录!";
+            JsonResult jsonResult = JsonResult.fail(ServiceCode.ERR_JWT_INVALID, errorMessage);
+            String jsonResultString = JSON.toJSONString(jsonResult);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().println(jsonResultString);
+            return;
+        }
+        catch (Throwable e){
+            log.debug("解析JWT失败,错误详情:{},{}",e.getClass().getName(),e.getMessage());
+            String errorMessage = "获取登录信息失败,请重新登录!";
+            JsonResult jsonResult = JsonResult.fail(ServiceCode.ERR_JWT_INVALID, errorMessage);
+            String jsonResultString = JSON.toJSONString(jsonResult);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().println(jsonResultString);
+            return;
+        }
+
+        Object id = claims.get("id");
+        log.debug("从JWT中解析得到管理员id:{}",id);
         Object username = claims.get("username");
         log.debug("从JWT中解析得到用户名:{}",username);
 
-        //准备临时权限
-        GrantedAuthority authority = new SimpleGrantedAuthority("1");
-        List<GrantedAuthority> authorities = new ArrayList<>();
-        authorities.add(authority);
+        LoginPrincipal loginPrincipal = new LoginPrincipal();
+        loginPrincipal.setId(Long.parseLong(id.toString()));
+        loginPrincipal.setUsername(username.toString());
 
+        //准备权限
+        Object authoritiesString = claims.get("authorities");
+        List<SimpleGrantedAuthority> authorities
+                = JSON.parseArray(authoritiesString.toString(), SimpleGrantedAuthority.class);
 
         //解析成功后，将数据存入到Spring Security上下文中
         //当登录成功后，密码无需传入，设置为null
         Authentication authentication =
-                new UsernamePasswordAuthenticationToken(username,null,authorities);
+                new UsernamePasswordAuthenticationToken(loginPrincipal,null,authorities);
         SecurityContext securityContext = SecurityContextHolder.getContext();
         securityContext.setAuthentication(authentication);
-
-
 
         //"放行"
         filterChain.doFilter(request,response);

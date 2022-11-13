@@ -36,12 +36,14 @@
                 #{gmtModified})
     </insert>
 
+
     <!--    int countByUsername(String username);-->
     <select id="countByUsername" resultType="int">
         SELECT COUNT(*)
         FROM ams_admin
         WHERE username = #{username}
     </select>
+
 
     <!--    List<AdminListItemVO> list();-->
     <select id="list" resultMap="ListItemResultMap">
@@ -120,9 +122,29 @@
     </update>
 
     <!--    AdminLoginVo getByUsername(String username);-->
-    <select id="getByUsername" resultType="cn.tedu.jsd2203.csmall.passport.pojo.vo.AdminLoginVo">
-        SELECT username, password
+    <select id="getByUsername" resultMap="LoginResultMap">
+        SELECT ams_admin.id,
+               ams_admin.username,
+               ams_admin.password,
+               ams_admin.enable,
+               ams_permission.value
         FROM ams_admin
-        WHERE username = #{username}
+                 LEFT JOIN ams_admin_role ON ams_admin.id = ams_admin_role.admin_id
+                 LEFT JOIN ams_role_permission ON ams_admin_role.role_id = ams_role_permission.role_id
+                 LEFT JOIN ams_permission ON ams_role_permission.permission_id = ams_permission.id
+        WHERE ams_admin.username = #{username};
     </select>
+
+    <resultMap id="LoginResultMap" type="cn.tedu.jsd2203.csmall.passport.pojo.vo.AdminLoginVo">
+        <id column="id" property="id"/>
+        <result column="username" property="username"/>
+        <result column="password" property="password"/>
+        <result column="enable" property="enable"/>
+        <collection property="permissions" ofType="java.lang.String">
+            <!-- new String("/ams/admin/read")-->
+            <constructor>
+                <arg column="value"/>
+            </constructor>
+        </collection>
+    </resultMap>
 </mapper>

@@ -5,6 +5,12 @@ import lombok.Data;
 
 import java.io.Serializable;
 
+/**
+ * 管理员列表项信息
+ *
+ * @author java@tedu.cn
+ * @version 0.0.1
+ */
 @Data
 public class AdminListItemVO implements Serializable {
 

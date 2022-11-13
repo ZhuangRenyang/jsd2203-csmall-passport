@@ -3,12 +3,17 @@ package cn.tedu.jsd2203.csmall.passport.service.impl;
 import cn.tedu.jsd2203.csmall.passport.config.BeanConfig;
 import cn.tedu.jsd2203.csmall.passport.exception.ServiceException;
 import cn.tedu.jsd2203.csmall.passport.mapper.AdminMapper;
+import cn.tedu.jsd2203.csmall.passport.mapper.AdminRoleMapper;
 import cn.tedu.jsd2203.csmall.passport.pojo.dto.AdminAddNewDTO;
 import cn.tedu.jsd2203.csmall.passport.pojo.dto.AdminLoginDTO;
 import cn.tedu.jsd2203.csmall.passport.pojo.entity.Admin;
+import cn.tedu.jsd2203.csmall.passport.pojo.entity.AdminRole;
 import cn.tedu.jsd2203.csmall.passport.pojo.vo.AdminListItemVO;
+import cn.tedu.jsd2203.csmall.passport.security.AdminDetails;
 import cn.tedu.jsd2203.csmall.passport.service.IAdminService;
+import cn.tedu.jsd2203.csmall.passport.util.JwtUtils;
 import cn.tedu.jsd2203.csmall.passport.web.ServiceCode;
+import com.alibaba.fastjson.JSON;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.extern.slf4j.Slf4j;
@@ -17,14 +22,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * 品牌业务实现
@@ -43,8 +46,14 @@ public class AdminServiceImpl implements IAdminService {
     private AuthenticationManager authenticationManager;
 
     @Autowired
+    private AdminRoleMapper adminRoleMapper;
+
+    @Autowired
     private AdminMapper adminMapper;
 
+    public AdminServiceImpl() {
+        log.debug("创建业务逻辑对象：AdminServiceImpl");
+    }
     @Override
     public void addNew(AdminAddNewDTO adminAddNewDTO) {
         log.debug("开始处理添加管理员的业务，参数：{}", adminAddNewDTO);
@@ -66,15 +75,26 @@ public class AdminServiceImpl implements IAdminService {
         String rawPassword = admin.getPassword();//将原密码从admin对象取出，加密后再存入到admin对象中
         String encodePassword = passwordEncoder.encode(rawPassword);//加密密码
         admin.setPassword(encodePassword);//插入密码
+
         // 将管理员数据写入到数据库中
         log.debug("即将向管理员表中写入数据：{}", admin);
         int rows = adminMapper.insert(admin);
         if (rows != 1) {
             String message = "添加管理员失败，服务器忙，请稍后再次尝试！【错误码：1】";
-            throw new ServiceException(ServiceCode.ERR_UNKNOWN, message);
+            throw new ServiceException(ServiceCode.ERR_INSERT, message);
         }
         log.info("插入成功,受影响的行数:{}", rows);
 
+        //插入管理员与角色的关联数据，是的以上添加的管理员是被分配了角色
+        AdminRole adminRole = new AdminRole();
+        adminRole.setAdminId(admin.getId());
+        adminRole.setRoleId(2L);//暂时锁定为2号角色
+        adminRole.setGmtCreate(BeanConfig.localDateTime());
+        rows = adminRoleMapper.insertRole(adminRole);
+        if (rows != 1) {
+            String message = "添加管理员权限失败，服务器忙，请稍后再次尝试！【错误码：2】";
+            throw new ServiceException(ServiceCode.ERR_INSERT, message);
+        }
     }
 
     @Override
@@ -90,28 +110,34 @@ public class AdminServiceImpl implements IAdminService {
         //获取返回结果
         Authentication loginResult = authenticationManager.authenticate(authentication);
 
-        log.debug("登录成功，认证的方法返回结果：{}",loginResult);
+        log.debug("登录成功，认证的方法返回结果：{}", loginResult);
         // 从认证结果获取Principal，本质就时User类型，是loadUserByUsername()方法返回的结果
-        log.debug("尝试获取Principal：{}",loginResult.getPrincipal());
+        log.debug("尝试获取Principal：{}", loginResult.getPrincipal());
 
-        User user = (User) loginResult.getPrincipal();
-        String username = user.getUsername();
-        log.debug("登录成功后的用户名：{}",username);
+        AdminDetails adminDetails = (AdminDetails) loginResult.getPrincipal();
+
+        Long id = adminDetails.getId();
+        log.debug("登录成功后的管理员id：{}", id);
+
+        String username = adminDetails.getUsername();
+        log.debug("登录成功后的用户名：{}", username);
+
+        Collection<GrantedAuthority> authorities = adminDetails.getAuthorities();
+        log.debug("登录成功后,管理员的权限:{}", authorities);
+
+        String authoritiesString = JSON.toJSONString(authorities);
+        log.debug("将管理员权限转换为JSON:{}", authoritiesString);
+
         //生成jwt
         Map<String, Object> claims = new HashMap<>();
-        claims.put("username", user.getUsername());
-        //过期时间： 60分钟
-        Date expirationDate = new Date(System.currentTimeMillis() +60* 60 * 60 * 1000);//System.currentTimeMillis();//1970年1月1日0时0分0秒 到 此时此刻 的毫秒值
+        claims.put("id", adminDetails.getId());
+        claims.put("username", adminDetails.getUsername());
+        claims.put("authorities", authoritiesString);
 
-        String jwt = Jwts.builder()//JWT的组成部分：header（头） ，payload（载荷），signature（签名）
-                .setHeaderParam("typ", "jwt") //header: 用于配置算法与此结果数据的类型
-                .setHeaderParam("alg", "HS256")
-                .setClaims(claims)//payload: 用于配置需要封装到JWT的数据
-                .setExpiration(expirationDate)
-                .signWith(SignatureAlgorithm.HS256, "udiasjia")//signature:用于指定算法与密匙
-                .compact(); //打包
-        log.debug("加密验证信息{}", jwt);
+        //过期时间
+        String jwt = JwtUtils.generate(claims);
         //如果能执行到此处，则表示用户名与密码是匹配的(以上方法红户名与密码不匹配则抛出异常)
+        log.debug("登录成功");
         return jwt;
     }
 

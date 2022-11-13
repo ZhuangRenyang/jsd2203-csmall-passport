@@ -42,11 +42,15 @@ public class JwtTest {
 
     @Test
     public void testParseJwt(){
-        String jwt = "eyJ0eXAiOiJqd3QiLCJhbGciOiJIUzI1NiJ9.eyJuYW1lIjoidG9tIiwiaWQiOjEyMywiZXhwIjoxNjY3NzIwNzg1fQ.I9gTWETGk68qZArKUGdnC9lr7n-CdXkUbrgotWMqj_Q";
+        String jwt = "eyJ0eXAiOiJqd3QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE2NjgzNDc5MTMsImF1dGhvcml0aWVzIjpbeyJhdXRob3JpdHkiOiIvYW1zL2FkbWluL2RlbGV0ZSJ9LHsiYXV0aG9yaXR5IjoiL2Ftcy9hZG1pbi9yZWFkIn0seyJhdXRob3JpdHkiOiIvYW1zL2FkbWluL3VwZGF0ZSJ9LHsiYXV0aG9yaXR5IjoiL3Btcy9wcm9kdWN0L2RlbGV0ZSJ9LHsiYXV0aG9yaXR5IjoiL3Btcy9wcm9kdWN0L3JlYWQifSx7ImF1dGhvcml0eSI6Ii9wbXMvcHJvZHVjdC91cGRhdGUifV0sInVzZXJuYW1lIjoicm9vdCJ9.A-oYnhF0hmkkZpb8OwU0xtJadNI4urA2OdXwzI-mAV8";
        Claims claims = Jwts.parser().setSigningKey("udiasjia").parseClaimsJws(jwt).getBody();
-        Object id = claims.get("id");
-        Object name = claims.get("name");
-        log.debug("id:{},name:{}",id,name);
+//        Object id = claims.get("id");
+//        Object name = claims.get("name");
+//        log.debug("id:{},name:{}",id,name);
+        Object username = claims.get("username");
+        Object authorities = claims.get("authorities");
+        log.debug("username:{}",username);
+        log.debug("authorities:{}",authorities);
     }
 
 }

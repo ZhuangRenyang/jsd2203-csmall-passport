@@ -26,6 +26,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 
@@ -55,6 +56,7 @@ public class AdminServiceImpl implements IAdminService {
         log.debug("创建业务逻辑对象：AdminServiceImpl");
     }
     @Override
+    @Transactional
     public void addNew(AdminAddNewDTO adminAddNewDTO) {
         log.debug("开始处理添加管理员的业务，参数：{}", adminAddNewDTO);
 
@@ -108,9 +110,10 @@ public class AdminServiceImpl implements IAdminService {
                         adminLoginDTO.getPassword());
 
         //获取返回结果
-        Authentication loginResult = authenticationManager.authenticate(authentication);
 
+        Authentication loginResult = authenticationManager.authenticate(authentication);
         log.debug("登录成功，认证的方法返回结果：{}", loginResult);
+
         // 从认证结果获取Principal，本质就时User类型，是loadUserByUsername()方法返回的结果
         log.debug("尝试获取Principal：{}", loginResult.getPrincipal());
 

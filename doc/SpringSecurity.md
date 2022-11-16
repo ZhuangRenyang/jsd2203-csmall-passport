@@ -751,3 +751,501 @@ http.antMatchers(HttpMethod.OPTIONS, "/**").permitAll();
 此时服务器端可能是不通过的，则会出现`403`错误，并且，实质尝试提交的请求（例如`GET`、`POST`）中复杂请求头部信息不会被提交。
 在浏览器端，一旦成功的提交了复杂请求，则后续不会自动提交`OPTIONS`请求执行预检。
 
+## 实现授权访问
+
+实现授权访问的步骤：
+
+- 当用户尝试登录时，应该根据用户名从数据库中查询出此管理员的权限信息
+
+- 在`UserDetailsServiceImpl`中，（当登录认证时，Spring Security框架会自动调用此类中的`loadUserByUesrname()`方法），
+根据用户名查询到有效管理员信息后，向`UserDetails`中存入权限信息
+
+  - 将`List<String>`格式的权限集合转换成`String...`格式即可，例如：
+
+    ```
+    admin.getPermissions().toArray(new String[] {})
+    ```
+
+- 在`AdminServiceImpl`的`login()`中，认证成功后，从返回的`Authentication`中取出权限信息，并其生成到JWT中
+
+  - 为保证后续能从JWT中取出权限且还原成正常的格式，应该将权限列表（`Collection<? extend GrandtedAuthority>`）
+  转换成JSON格式的字符串再写入
+
+- 在`JwtAuthorizationFilter`中，从JWT中解析出权限，并存入到Security的上下文中
+
+  - 从JWT中解析出的权限是JSON格式的字符串，需还原成`Collection<? extend GrandtedAuthority>`类型才可以存入到Security的上下文中，可以还原成`List<SimpleGrantedAuthority>`
+
+- 在Security的配置类`SecurityConfiguration`上添加注解`@EnableGlobalMethodSecurity(prePostEnabled = true)`以开启全局的授权访问检查
+
+  - 此配置是一次性的配置
+
+- 在控制器中，在处理请求的方法上，使用`@PreAuthorize`注解，配置其中的`hasAuthority`属性，即可要求此请求必须具有某种权限
+
+  - 例如：`@PreAuthorize("hasAuthority('/ams/admin/read')")`
+
+
+
+## 根据用户名查询管理员的权限
+
+首先，在`AdminLoginVO`中添加必要的属性：
+
+```java
+package cn.tedu.csmall.passport.pojo.vo;
+
+import lombok.Data;
+
+import java.io.Serializable;
+import java.util.List;
+
+@Data
+public class AdminLoginVO implements Serializable {
+
+    /**
+     * 管理员的id
+     */
+    private Long id;
+
+    /**
+     * 用户名
+     */
+    private String username;
+
+    /**
+     * 密码（密文）
+     */
+    private String password;
+
+    /**
+     * 账号是否启用，0=禁用，1=启用
+     */
+    private Integer enable;
+
+    /**
+     * 此账号的权限列表
+     */
+    private List<String> permissions;
+
+}
+```
+
+然后，在`AdminMapper.xml`中配置查询：
+
+```
+<!-- AdminLoginVO getByUsername(String username); -->
+<select id="getByUsername" resultMap="LoginResultMap">
+    SELECT
+        ams_admin.id,
+        ams_admin.username,
+        ams_admin.password,
+        ams_admin.enable,
+        ams_permission.value
+    FROM ams_admin
+    LEFT JOIN ams_admin_role ON ams_admin.id=ams_admin_role.admin_id
+    LEFT JOIN ams_role_permission ON ams_admin_role.role_id=ams_role_permission.role_id
+    LEFT JOIN ams_permission ON ams_role_permission.permission_id=ams_permission.id
+    WHERE
+        ams_admin.username=#{username}
+</select>
+
+<resultMap id="LoginResultMap" type="cn.tedu.csmall.passport.pojo.vo.AdminLoginVO">
+    <id column="id" property="id" />
+    <result column="username" property="username" />
+    <result column="password" property="password" />
+    <result column="enable" property="enable" />
+    <collection property="permissions" ofType="java.lang.String">
+        <constructor>
+            <arg column="value" />
+        </constructor>
+    </collection>
+</resultMap>
+```
+
+
+
+## 关于JWT过滤器的处理细节
+
+解析JWT是可能失败的，例如JWT数据过期、签名错误、数据非法等，这些错误都应该被处理，否则，
+就会存在异常未处理的情况，最终将导致500错误！
+
+关于以上可能的错误，应该大致分为3类，一类是JWT数据过期，一类是JWT数据被恶意篡改，再另外还有可能是其它的错误。
+
+首先，先在`ServiceCode`中添加新的业务状态码，对应一些错误：
+
+```
+/**
+ * 错误：JWT数据错误，可能被恶意篡改
+ */
+public static final int ERR_JWT_INVALID = 40001;
+/**
+ * 错误：JWT过期
+ */
+public static final int ERR_JWT_EXPIRED = 40300;
+```
+
+然后，需要在JWT过滤器中，自行使用`try...catch`来捕获并处理异常！
+
+
+
+## 在登录的用户身份标识中添加自定义信息
+
+Spring Security框架中并没有使用、封装用户的ID等相关信息，如果使用过程中，需要自行封装更多的信息，并添加到用户身份标识中，则需要：
+
+- 自定义类实现`UserDetails`接口
+- 或，自定义类继承`User`类
+
+并且，在自定义类中添加所需的属性，例如ID，然后，在`UserDetailsService`的实现类中，在`loadUserByUsername()`方法返回自定义类的对象。
+
+所以，创建`AdminDetails`类：
+
+```java
+@Setter
+@Getter
+@EqualsAndHashCode
+@ToString(callSuper = true)
+public class AdminDetails extends User {
+
+    private Long id;
+
+    public AdminDetails(String username, String password, boolean enabled,
+                        Collection<? extends GrantedAuthority> authorities) {
+        super(username, password, enabled,
+                true, true, true,
+                authorities);
+    }
+
+}
+```
+
+在`UserDetailsServiceImpl`中，需要返回时：
+
+```
+List<String> permissions = admin.getPermissions();
+List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+for (String permission : permissions) {
+    authorities.add(new SimpleGrantedAuthority(permission));
+}
+
+AdminDetails adminDetails = new AdminDetails(
+        admin.getUsername(),
+        admin.getPassword(),
+        admin.getEnable() == 1,
+        authorities
+);
+adminDetails.setId(admin.getId());
+log.debug("即将向Spring Security返回AdminDetails：{}", adminDetails);
+```
+
+接下来，在`AdminServiceImpl`的`login()`方法中，通过`AuthenticationManager`的`authenticate()`执行认证且通过认证的返回结果就是
+以上`AdminDetails`对象，所以，可以从中获取管理员的id，并用于生成JWT数据，则用户登录成功后得到的JWT数据中将包含Id信息。
+
+后续，客户端提交请求时，携带的JWT也是包含Id信息的，可以在`JwtAuthenticationFilter`中解析得到此Id，最终，此Id值应该封装
+到Security的上下文中，则可以利用`UsernamePasswordAuthenticationToken`类的`principal`属性（`Object`类型），所以，
+自定义类，用于封装后续可能需要使用到的管理员信息：
+
+```java
+package cn.tedu.csmall.passport.security;
+
+import lombok.Data;
+
+import java.io.Serializable;
+
+/**
+ * 当前登录的当事人
+ *
+ * @author java@tedu.cn
+ * @version 0.0.1
+ */
+@Data
+public class LoginPrincipal implements Serializable {
+
+    /**
+     * 当前登录的用户id
+     */
+    private Long id;
+
+    /**
+     * 当前登录的用户名
+     */
+    private String username;
+
+}
+```
+
+然后，在过滤器，将其存入：
+
+```
+// 准备当前登录用户的当事人信息
+LoginPrincipal loginPrincipal = new LoginPrincipal();
+loginPrincipal.setId(Long.parseLong(id.toString()));
+loginPrincipal.setUsername(username.toString());
+
+// 当解析成功后，应该将Authentication存入到Spring Security的上下文中
+Authentication authentication
+        = new UsernamePasswordAuthenticationToken(loginPrincipal, null, authorities);
+//                                             == 以上封装了当事人信息 ==
+SecurityContext securityContext = SecurityContextHolder.getContext();
+securityContext.setAuthentication(authentication);
+log.debug("已经向Security的上下文中写入：{}", authentication);
+```
+
+至此，当客户端携带JWT访问服务器端时，服务器端的Security的上下文中就包含了管理员的id、用户名、权限，其中，权限不需要自行使用，
+都是Security框架自动判断（你只需要在控制器处理请求的方法上配置`@PreAuthorize`注解即可），当需要获取管理员的id、用户名时，
+可以在控制器处理请求的方法的参数列表中添加`Authentication`即可，此参数就是Security上下文中的认证信息（过滤器中存入的对象），例如：
+
+```
+// http://localhost:9081/admins
+@ApiOperation("查询管理员列表")
+@ApiOperationSupport(order = 401)
+@PreAuthorize("hasAuthority('/ams/admin/read')")
+@GetMapping("")
+public JsonResult list(Authentication authentication) {
+    log.debug("接收到查询管理员列表的请求");
+    log.debug("当前认证信息：{}", authentication);
+    LoginPrincipal principal = (LoginPrincipal) authentication.getPrincipal();
+    Long id = principal.getId();
+    log.debug("从认证信息中获取当前登录的管理员的id：{}", id);
+    String username = principal.getUsername();
+    log.debug("从认证信息中获取当前登录的管理员的用户名：{}", username);
+    List<AdminListItemVO> admins = adminService.list();
+    return JsonResult.ok(admins);
+}
+```
+
+从`Authentication`中获取`LoginPrincipal`比较麻烦，还需要自行获取、转换类型，可以改为声明`LoginPricipal`参数（在过滤器中封装到`UsernamePasswordAuthenticationToken`的`pricipal`属性中的对象），然后，在此参数前添加`@AuthenticationPrincipal`注解，即可直接使用：
+
+```
+// http://localhost:9081/admins
+@ApiOperation("查询管理员列表")
+@ApiOperationSupport(order = 401)
+@PreAuthorize("hasAuthority('/ams/admin/read')")
+@GetMapping("")
+public JsonResult list(@AuthenticationPrincipal LoginPrincipal loginPrincipal) {
+    log.debug("接收到查询管理员列表的请求");
+    log.debug("当前认证信息中的当事人信息：{}", loginPrincipal);
+    Long id = loginPrincipal.getId();
+    log.debug("从认证信息中获取当前登录的管理员的id：{}", id);
+    String username = loginPrincipal.getUsername();
+    log.debug("从认证信息中获取当前登录的管理员的用户名：{}", username);
+    List<AdminListItemVO> admins = adminService.list();
+    return JsonResult.ok(admins);
+}
+```
+
+
+
+## 作业1：实现`csmall-server`中的认证访问
+
+目标：原`csmall-server`项目中的所有功能都是必须登录以后才可以访问的。
+
+开发步骤：
+
+- 在`csmall-server`项目中添加相关依赖项
+
+- 在项目的启动类的`@SpringBootApplication`注解中排除`UserDetailsServiceAutoConfiguration`
+
+  - ```
+    @SpringBootApplication(exclude = UserDetailsServiceAutoConfiguration.class)
+    ```
+
+  - 不再使用临时的`user`用户名和随机密码
+
+- 【手写】JWT工具类
+
+- 创建`LoginPrincipal`类
+
+- 【手写】使用`JwtAuthenticationFilter`获取、解析JWT，并将当事人信息封装到`Authentication`中，
+并存入到Spring Security的上下文中
+
+- 创建`SecurityConfigration`类
+
+  - 需要`http.cors()`
+  - 需要`http.csrf().disable()`
+  - 所有请求都必须登录才可以访问
+
+注意：原有的所有客户端请求都必须携带JWT。
+
+
+
+## 作业2：实现`csmall-server`中的其它功能
+
+检查并确保完成以下功能：
+
+- 增加品牌
+- 查询品牌列表
+- 根据id删除品牌
+- 增加类别
+- 查询类别列表
+- 根据id删除类别
+- 增加属性
+- 查询属性列表
+- 根据id删除属性
+- 增加相册
+- 查询相册列表
+- 根据id删除相册
+- 增加属性模版
+- 查询属性模版列表
+- 根据id删除属性模版
+
+ 以上功能需完成持久层、业务逻辑层、控制器、界面。
+
+
+Spring Security框架相关概念
+ 
+ Authentication
+  认证信息，在项目中，是一个接口，常用实现类：UsernamePasswordAuthenticationToken。
+  根据不同的应用场景，表现的意义也不同：
+    1.AuthenticationManager的authenticate方法参数中：用于封装用户名和密码
+    2.AuthenticationManager的authenticate方法返回结果中：表示登录成功的用户信息
+
+ Authorization
+  认证，在项目中，主要表现为携带JWT请求头的属性名(建议使用)
+ 
+ Authority
+  权限，在项目中，表现为一些字符串(具有：唯一、易阅读)，框架会根据登录后的用户信息和控制器中配置
+  的权限进行检查，来判断当前用户是否具有执行此操作的权力。
+ 
+ Principle
+  当事人，是Authentication中的部分属性，以UsernamePasswordAuthenticationToken为例：它包含：
+  Principle、Credentials、Authorities 三部分，在项目中：1.在Authentication认证过程中：Principle指代
+  用户名，2.在Authentication认证返回结果时：Principle则表示用户认证后的信息(包含：id、用户名...)
+ 
+ Token
+  票据、令牌，指代携带了一部分有意义的数据信息
+  
+ UserDetails
+  用户详情，是用于执行认证过程中，封装用户的信息。在UserDetailsService接口的实现类中，在loadUserByUsername方法中
+  的返回结果就是该对象，Spring Security会自动调用此方法来获取UserDetails对象，并且会自动调用PasswordEncoder来验证
+  用户请求登录输入的密码。并且，此类型也是认证成功后Authentication的Principle
+
+
+使用Spring Security框架涉及的文件
+
+ pom.xml
+  Spring Security >>> spring-boot-starter-security
+  jjwt >>> 生成和解析JWT数据的工具包
+  fastjson >>> 实现对象与JSON字符串相互转换的工具包
+
+ UserDetailsServiceImpl
+  是UserDetailsService实现类，需要重写loadUserByUsername(String s), Spring Security在执行认证过程中，
+  会自动调用此方法，此方法的返回结果至少包含：密码、权限等必要信息。
+  
+  关于返回的UserDetails对象，通常是User类型，但是，此类型不包含id等属性，所以，可以自定义类实现UserDetails接口，
+  或继承User类，作为UserDetails对象。
+  
+ SecurityConfiguration
+  是Spring Security的配置类，需要继承 WebSecurityConfigurerAdapter 类
+  此类添加的注解：@EnableGlobalMethodSecurity(prePostEnabled = true)，用于开启全局方法的授权检查(方法上@PreAuthorize)
+  
+  配置PasswordEncoder对象，在执行过程中，Spring Security自动使用此对象的matches()方法验证密码。
+  配置AuthenticationManager对象，用于其他组件(Service)中执行认证(调用authenticate()方法)。
+  
+  *比较重要 重写configure(HttpSecurity http)，在方法内部对如何进行处理请求进行配置。
+   禁止防止跨域伪造的攻击：http.csrf().disable()
+   预检机制：http.cors()
+   链式调用：
+    对请求进行认证：authorizeRequests()
+    配置某些路径：antMatchers()
+    放行之前配置的路径：permitAll()
+    匹配其他的请求(路径)：anyRequest()
+    已经认证的：authenticated()
+    
+ AdminDetails
+  是UserDetails实现类或User子类，作用：对User类进行扩展(需要的认证信息中通常会包含id等信息)
+
+  在UserDetailsServiceImpl中的loadUserByUsername(String s)中返回结果就是AdminDetails。
+  AuthenticationManager的authenticate方法进行认证的结果中Principal也是AdminDetails。
+    
+ JwtUtils
+  定义生成和解析JWT方法
+
+ JwtAuthorizationFilter
+  这是处理JWT的过滤器，作用就是对客户端的请求头中有效的JWT进行解析，并将解析的结果封装到认证信息中，然后将
+  认证信息添加到SpringSecurity上下文中。
+  
+  1. 对于无效JWT，直接放行（有些请求不应该携带JWT：登录，注册...）
+  2. 解析JWT可能失败(JWT过期)，异常处理（try...catch）
+  3. 解析出JWT相关数据，应该封装到UsernamePasswordAuthenticationToken中，需要注意authorities不能为空，
+  否则SpringSecurity会视为没有有效的认证信息
+  4. 认证信息存入Spring Security中
+  5. 应在过滤器执行时，清除Spring Security的信息（没有携带JWT的时候也能正常访问）
+  
+ LoginPrincipal
+  主要用于封装当事人的多个属性（id,用户名）
+  
+ AdminMapper
+  根据用户名查询管理员信息
+ AdminServiceImpl
+  执行认证
+ AdminController
+  返回JWT数据
+
+**基于Spring JDBC的事务管理**
+事务：是数据库中一种能够使得多个写操作(增删改)要么全部成功，要么全部失败的一种机制
+
+SpringJDBC是Spring对数据库编程的支持框架，当SpringBoot项目中添加了：`mybatis-spring-boot-starter`时，就会
+内置`spring-boot-starter-jdbc`，而`spring-boot-starter-jdbc`依赖了`spring-jdbc`的。
+
+当需要使用事务来保障某个业务时，只需要在业务方法上添加@Transactional注解即可。
+
+
+
+使用事务的原则:
+
+ ***\*一个业务逻辑层方法中包含两个以及两个以上的增删改操作时\****
+
+ 为了保证数据库完整性,应该在方法前添加事务注解
+
+
+**【相关概念】**
+
+- 自动提交：在默认的情况下，对数据库的数据的写操作默认都是自动提交的
+
+  - 正在执行的程序和数据都是在内存中的，而数据库的数据是保存在永久存储的介质（例如硬盘）上的，
+  所以，任何写操作都是先在内存中执行，再写入到硬盘上，自动提交指的就是自动写入到硬盘
+
+- 开启事务（begin）：准备开始执行事务，本质上，将临时关闭默认的自动提交
+
+- 提交（commit）：将内存中的写操作（对数据的改动）的结果写入到数据库中
+
+  - 在执行结束后，默认会继续还原成自动提交的状态
+
+- 回滚（rollback）：放弃在内存中的写操作，本质上，是不将数据写入到数据库
+
+  - 在执行结束后，默认会继续还原成自动提交的状态
+
+**【Spring JDBC的事务机制】**
+
+- 关于回滚：在默认情况下，如果执行的操作抛出`RuntimeException`或其子孙类异常，Spring JDBC就会执行回滚
+
+  - 在`@Transactional`注解中，配置`rollbackFor`属性可以修改基于哪种异常进行回滚，还可以配置`noRollbackFor`属性可以配置对哪种异常不进行回滚
+
+- 关于接口代理：Spring JDBC在处理事务时，使用了接口代理的模式，所以，`@Transactional`注解可以添加在接口上、
+添加在接口的实现类上、添加在接口的抽象方法上、添加在实现类重写的方法上，不可以添加在其它方法上（例如接口的实现类中自定义的方法）。
+
+  - 如果接口/类上使用了此注解，并配置了属性，方法上也使用了此注解，配置了同样的属性但值不同，以方法的为准
+  - 一旦使用此注解，会使得多个操作（包括读操作、写操作）使用同一个数据库连接对象，执行效率略高
+
+- 关于添加`@Transactional`注解：推荐添加在接口上，或接口的抽象方法上。
+
+  - ```java
+    public interface IAdminService {
+        /** 添加管理员*/
+        @Transactional
+        void addNew(AdminAddNewDTO adminAddNewDTO);
+    }
+    ```
+
+    
+
+**【用法总结】**
+
+- 在处理业务的过程中，只要执行了写操作，必须获取受影响的行数，如果此结果不符合预期，必须抛出`RuntimeException`或其子孙类异常。
+
+- 关于添加`@Transactional`注解：推荐添加在接口上，或接口的抽象方法上。
+
+**【其它 - 面试题】**
+
+- ACID
+- 事务的传播
+- 事务的隔离级别
+

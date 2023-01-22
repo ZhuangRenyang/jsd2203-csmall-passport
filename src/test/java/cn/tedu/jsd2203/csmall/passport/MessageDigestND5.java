@@ -7,6 +7,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.util.DigestUtils;
 
 import javax.swing.plaf.PanelUI;
+import java.util.ArrayList;
 import java.util.UUID;
 
 @SpringBootTest
@@ -51,9 +52,12 @@ public class MessageDigestND5 {
     @Test
     public void testMatches(){
         String rawPassword = "123123";
-        String encodePassword = "$2a$10$N0apUrLhMk7TdL3RTsqz7O5nwgundq0zWa3/uh8eD7RL2RXc15xOC";
+        String encodePassword = "$2a$10$T7nJCR2j7LeCjjlHTfyWyOvg.U2vPCgIeg4ZL/K62S46LLGKkbdsm";
         BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+
         boolean matches = passwordEncoder.matches(rawPassword, encodePassword);
         System.out.println("匹配结果:"+matches);
     }
+
+    
 }

@@ -32,10 +32,10 @@ public class UserDetailsServiceImpl implements UserDetailsService {
      */
     @Override
     public UserDetails loadUserByUsername(String s) throws UsernameNotFoundException {
-        log.debug("Spring Security 根据用户名[{}]查询用户信息", s);
+        log.debug("Spring Security 根据用户名[{}]查询用户信息",s);
 
         AdminLoginVo adminLoginVo = adminMapper.getByUsername(s);
-
+        System.out.println("用户信息:"+adminLoginVo);
         if (adminLoginVo != null) {
             List<String> permissions = adminLoginVo.getPermissions();
             List<SimpleGrantedAuthority> authorities = new ArrayList<>();
